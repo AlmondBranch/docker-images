@@ -1,6 +1,79 @@
 FROM ubuntu:16.04
 
-RUN apt-get update && apt-get install -y curl xz-utils
+RUN apt-get update && apt-get install -y binutils
+
+# Install node.js
+RUN cd ~ && \
+    apt-get install -y curl && \
+    curl -sL https://deb.nodesource.com/setup_7.x -o nodesource_setup.sh && \
+    bash nodesource_setup.sh && \
+    apt-get install -y nodejs build-essential
+
+# Install other dependencies
+RUN apt-get install -y make g++ libx11-dev libxkbfile-dev fakeroot
+
+# Download the vscode source repo
+RUN cd /home && \
+    apt-get install -y git && \
+    git clone https://github.com/microsoft/vscode
+
+# Install Python
+RUN apt-get install -y python2.7 python-pip && \
+    pip install --upgrade pip && \
+    pip install GitPython
+
+# Unpack the latest vscode distributable
+RUN mkdir /tmp/vscode_dist && \
+    apt-get install -y wget xz-utils && \
+    wget -O /tmp/vscode_dist/vscode.dpkg http://go.microsoft.com/fwlink/?LinkID=760868 && \
+    cd /tmp/vscode_dist && ar vx vscode.dpkg && \
+    cd /tmp/vscode_dist && tar -xvf data.tar.xz
+
+# Set the working directory of the vscode git repo to match the commit mentioned in the updated product.json file that was added from the release version
+ADD product_parser.py /home/product_parser.py
+RUN cd /home/vscode && \
+    python /home/product_parser.py --product_json='/tmp/vscode_dist/usr/share/code/resources/app/product.json' --vscode_repo='/home/vscode'
+
+# Copy over the release icon
+RUN rm /home/vscode/resources/linux/code.png && \
+    cp /tmp/vscode_dist/usr/share/pixmaps/code.png /home/vscode/resources/linux
+
+# Copy over the updated product.json file
+RUN rm /home/vscode/product.json && \
+    cp /tmp/vscode_dist/usr/share/code/resources/app/product.json /home/vscode
+
+# Remove vscode release checksums since this docker image will package the app differently
+ADD checksum_remover.py /tmp
+RUN python /tmp/checksum_remover.py --product_json='/home/vscode/product.json'
+
+# Run the install scripts
+RUN cd /home/vscode && \
+    /home/vscode/scripts/npm.sh run-script preinstall && \
+    /home/vscode/scripts/npm.sh install --arch=x64 && \
+    /home/vscode/scripts/npm.sh run-script postinstall
+
+# For some reason postinstall misses some npm install calls, fix those
+RUN cd /home/vscode/extensions/css/server && /home/vscode/scripts/npm.sh install && \
+    cd /home/vscode/extensions/vscode-colorize-tests && /home/vscode/scripts/npm.sh install && \
+    cd /home/vscode/extensions/vscode-colorize-tests && /home/vscode/scripts/npm.sh run-script postinstall && \
+    cd /home/vscode/extensions/json/server && /home/vscode/scripts/npm.sh install && \
+    cd /home/vscode/extensions/html/server && /home/vscode/scripts/npm.sh install
+
+# Compile the code (must ensure that a mac resource exists or else there is an error. Kind of weird but I am just going with it)
+RUN touch /home/vscode/resources/darwin/Credits.rtf && \
+    cd /home/vscode && /home/vscode/scripts/npm.sh run-script compile
+
+# Package the app (use the version of electron specified in package.json)
+RUN /home/vscode/scripts/npm.sh install electron-packager -g && \
+    ELECTRON_VERSION=$( \
+        cat /home/vscode/package.json | \
+	grep electronVersion | \
+	sed -e 's/[[:space:]]*"electronVersion":[[:space:]]*"\([0-9.]*\)"\(,\)*/\1/' \
+    ) && \
+    cd /home/vscode && electron-packager . vscode_custom --platform=linux --arch=x64 --icon=resources/linux/code.png --electron-version=$ELECTRON_VERSION
+
+# Install other needed dependencies
+RUN apt-get install -y libnss3 libgtk2.0-0 libxtst6 libxss1 libgconf-2-4 libasound2
 
 # Install X11
 RUN apt-get install -y sudo x11-apps libx11-xcb-dev
@@ -16,88 +89,6 @@ RUN export uid=1000 gid=1000 && \
     chown ${uid}:${gid} -R /home/developer
 
 USER developer
+RUN sudo cp -r /home/vscode/vscode_custom-linux-x64 /home/developer
 
-#Install node
-# gpg keys listed at https://github.com/nodejs/node#release-team
-RUN set -ex \
-  && for key in \
-    9554F04D7259F04124DE6B476D5A82AC7E37093B \
-    94AE36675C464D64BAFA68DD7434390BDBE9B9C5 \
-    FD3A5288F042B6850C66B31F09FE44734EB7990E \
-    71DCFD284A79C3B38668286BC97EC7A07EDE3FC1 \
-    DD8F2338BAE7501E3DD5AC78C273792F7D83545D \
-    B9AE9905FFD7803F25714661B63B535A4C206CA9 \
-    C4F0DFFF4E8C1A8236409D08E73BC641CC11F4C8 \
-    56730D5401028683275BD23C23EFEFE93C4CFFFE \
-  ; do \
-    gpg --keyserver ha.pool.sks-keyservers.net --recv-keys "$key" || \
-    gpg --keyserver pgp.mit.edu --recv-keys "$key" || \
-    gpg --keyserver keyserver.pgp.com --recv-keys "$key" ; \
-  done
-
-ENV NPM_CONFIG_LOGLEVEL info
-ENV NODE_VERSION 7.8.0
-
-RUN cd /home/developer && curl -SLO "https://nodejs.org/dist/v$NODE_VERSION/node-v$NODE_VERSION-linux-x64.tar.xz" \
-  && curl -SLO "https://nodejs.org/dist/v$NODE_VERSION/SHASUMS256.txt.asc" \
-  && gpg --batch --decrypt --output SHASUMS256.txt SHASUMS256.txt.asc \
-  && grep " node-v$NODE_VERSION-linux-x64.tar.xz\$" SHASUMS256.txt | sha256sum -c - \
-  && sudo tar -xJf "node-v$NODE_VERSION-linux-x64.tar.xz" -C /usr/local --strip-components=1 \
-  && rm "node-v$NODE_VERSION-linux-x64.tar.xz" SHASUMS256.txt.asc SHASUMS256.txt \
-  && sudo ln -s /usr/local/bin/node /usr/local/bin/nodejs
-
-ENV YARN_VERSION 0.22.0
-
-RUN set -ex \
-  && for key in \
-    6A010C5166006599AA17F08146C2130DFD2497F5 \
-  ; do \
-    gpg --keyserver ha.pool.sks-keyservers.net --recv-keys "$key" || \
-    gpg --keyserver pgp.mit.edu --recv-keys "$key" || \
-    gpg --keyserver keyserver.pgp.com --recv-keys "$key" ; \
-  done \
-  && cd /home/developer && curl -fSL -o yarn.js "https://yarnpkg.com/downloads/$YARN_VERSION/yarn-legacy-$YARN_VERSION.js" \
-  && curl -fSL -o yarn.js.asc "https://yarnpkg.com/downloads/$YARN_VERSION/yarn-legacy-$YARN_VERSION.js.asc" \
-  && gpg --batch --verify yarn.js.asc yarn.js \
-  && rm yarn.js.asc \
-  && sudo mv yarn.js /usr/local/bin/yarn \
-&& sudo chmod +x /usr/local/bin/yarn
-
-#Install python
-RUN sudo apt-get install -y python2.7
-RUN sudo ln -s /usr/bin/python2.7 /usr/bin/python
-
-#Install git
-RUN sudo apt-get install -y git
-
-#Install vscode source
-RUN sudo apt-get install -y g++ make
-RUN cd /home/developer && git clone https://github.com/microsoft/vscode && cd vscode && git checkout tags/1.11.1
-RUN sudo apt-get install -y libxkbfile-dev
-RUN cd /home/developer/vscode && ./scripts/npm.sh install --arch=x64
-
-#Install electron
-RUN sudo apt-get install -y libnss3 libgtk2.0-0 libxtst6 libxss1 libgconf-2-4 libasound2
-RUN cd /home/developer/vscode && sudo npm install -g electron
-
-# crazy npm rebuild line taken from https://github.com/EmergingTechnologyAdvisors/node-serialport/issues/904
-RUN cd /home/developer/vscode && npm run-script compile && npm rebuild --runtime=electron --target=1.6.3 --disturl=https://atom.io/download/atom-shell --build-from-source
-
-# change the application name in the window title from "Code - OSS" to "Visual Studio Code"
-RUN sed -ie 's/Code - OSS/Visual Studio Code/g' /home/developer/vscode/product.json
-
-# change the application icon to the production one
-RUN rm /home/developer/vscode/resources/linux/code.png
-ADD code.png /home/developer/vscode/resources/linux/code.png
-
-# Add canberra to satify gtk error message
-RUN sudo apt-get install -y libcanberra-gtk-module
-
-#Set VSCODE_DEV to something so that an initial folder isn't opened in the explorer window on start-up
-ENV VSCODE_DEV=1
-
-CMD cd /home/developer/vscode && electron .
-
-
-
-
+CMD ./home/developer/vscode_custom-linux-x64/vscode_custom
