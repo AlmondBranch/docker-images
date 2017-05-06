@@ -22,6 +22,9 @@ RUN apt-get install -y python2.7 python-pip && \
     pip install --upgrade pip && \
     pip install GitPython
 
+# Install other needed dependencies
+RUN apt-get install -y libnss3 libgtk2.0-0 libxtst6 libxss1 libgconf-2-4 libasound2
+
 # Unpack the latest vscode distributable
 RUN mkdir /tmp/vscode_dist && \
     apt-get install -y wget xz-utils && \
@@ -29,17 +32,15 @@ RUN mkdir /tmp/vscode_dist && \
     cd /tmp/vscode_dist && ar vx vscode.dpkg && \
     cd /tmp/vscode_dist && tar -xvf data.tar.xz
 
-# Set the working directory of the vscode git repo to match the commit mentioned in the updated product.json file that was added from the release version
+# Set the working directory of the vscode git repo to match the commit mentioned in the distribution product.json file that was added from the release version
 ADD product_parser.py /home/product_parser.py
 RUN cd /home/vscode && \
     python /home/product_parser.py --product_json='/tmp/vscode_dist/usr/share/code/resources/app/product.json' --vscode_repo='/home/vscode'
 
-# Copy over the release icon
+# Copy over the release icon and product.json. Don't update package.json because this will cause the question mark icon to appear.
 RUN rm /home/vscode/resources/linux/code.png && \
-    cp /tmp/vscode_dist/usr/share/pixmaps/code.png /home/vscode/resources/linux
-
-# Copy over the updated product.json file
-RUN rm /home/vscode/product.json && \
+    cp /tmp/vscode_dist/usr/share/pixmaps/code.png /home/vscode/resources/linux && \
+    rm /home/vscode/product.json && \
     cp /tmp/vscode_dist/usr/share/code/resources/app/product.json /home/vscode
 
 # Remove vscode release checksums since this docker image will package the app differently
@@ -72,9 +73,6 @@ RUN /home/vscode/scripts/npm.sh install electron-packager -g && \
     ) && \
     cd /home/vscode && electron-packager . vscode_custom --platform=linux --arch=x64 --icon=resources/linux/code.png --electron-version=$ELECTRON_VERSION
 
-# Install other needed dependencies
-RUN apt-get install -y libnss3 libgtk2.0-0 libxtst6 libxss1 libgconf-2-4 libasound2
-
 # Install X11
 RUN apt-get install -y sudo x11-apps libx11-xcb-dev
 
@@ -89,6 +87,12 @@ RUN export uid=1000 gid=1000 && \
     chown ${uid}:${gid} -R /home/developer
 
 USER developer
+
+# Copy over the built version of vscode to a directory owned by developer
 RUN sudo cp -r /home/vscode/vscode_custom-linux-x64 /home/developer
 
-CMD ./home/developer/vscode_custom-linux-x64/vscode_custom
+# Create directories for the config and extensions so that they can be mapped to volumes when running
+RUN mkdir -p /home/developer/.config/code-oss-dev &&\
+    mkdir /home/developer/extensions_vscode
+
+CMD ./home/developer/vscode_custom-linux-x64/vscode_custom --extensions-dir=/home/developer/extensions_vscode
