@@ -23,7 +23,7 @@ RUN apt-get install -y python2.7 python-pip && \
     pip install GitPython
 
 # Install other needed dependencies
-RUN apt-get install -y libnss3 libgtk2.0-0 libxtst6 libxss1 libgconf-2-4 libasound2
+RUN apt-get install -y libnss3 libgtk2.0-0 libxtst6 libxss1 libgconf-2-4 libasound2 libcanberra-gtk-module
 
 # Add the release icon and product.json to the container (Don't update package.json because this will cause the question mark icon to appear)
 RUN mkdir /tmp/release_vscode_items
