@@ -25,23 +25,21 @@ RUN apt-get install -y python2.7 python-pip && \
 # Install other needed dependencies
 RUN apt-get install -y libnss3 libgtk2.0-0 libxtst6 libxss1 libgconf-2-4 libasound2
 
-# Unpack the latest vscode distributable
-RUN mkdir /tmp/vscode_dist && \
-    apt-get install -y wget xz-utils && \
-    wget -O /tmp/vscode_dist/vscode.dpkg http://go.microsoft.com/fwlink/?LinkID=760868 && \
-    cd /tmp/vscode_dist && ar vx vscode.dpkg && \
-    cd /tmp/vscode_dist && tar -xvf data.tar.xz
+# Add the release icon and product.json to the container (Don't update package.json because this will cause the question mark icon to appear)
+RUN mkdir /tmp/release_vscode_items
+ADD code.png /tmp/release_vscode_items/code.png
+ADD product_v1.12.1.json /tmp/release_vscode_items/product.json
 
 # Set the working directory of the vscode git repo to match the commit mentioned in the distribution product.json file that was added from the release version
 ADD product_parser.py /home/product_parser.py
 RUN cd /home/vscode && \
-    python /home/product_parser.py --product_json='/tmp/vscode_dist/usr/share/code/resources/app/product.json' --vscode_repo='/home/vscode'
+    python /home/product_parser.py --product_json='/tmp/release_vscode_items/product.json' --vscode_repo='/home/vscode'
 
-# Copy over the release icon and product.json. Don't update package.json because this will cause the question mark icon to appear.
+# Move the release icon and product.json into the source code
 RUN rm /home/vscode/resources/linux/code.png && \
-    cp /tmp/vscode_dist/usr/share/pixmaps/code.png /home/vscode/resources/linux && \
+    cp /tmp/release_vscode_items/code.png /home/vscode/resources/linux && \
     rm /home/vscode/product.json && \
-    cp /tmp/vscode_dist/usr/share/code/resources/app/product.json /home/vscode
+    cp /tmp/release_vscode_items/product.json /home/vscode
 
 # Remove vscode release checksums since this docker image will package the app differently
 ADD checksum_remover.py /tmp
