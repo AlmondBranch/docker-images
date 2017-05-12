@@ -1,0 +1,20 @@
+Issue
+
+The issue is that when uglifying a certain regex an extra backslash is added in the uglified output. For this example the original and uglified outputs are as follows:
+
+original: function boomBaby(s) { return s.split(/[\\/]/); };
+uglified: function boomBaby(n){return n.split(/[\\\/]/)}
+
+There is an extra backslash added in the uglified output. From what I can tell both the original and uglified regexes appear to perform the same, but this can cause problems with output that is verified with a hash as the extra backslash will cause the hash of the output not to match the expected hash.
+
+Steps to Reproduce
+
+To reproduce the issue first build the docker file by running the following in a directory containing all files in this current folder:
+
+docker build -f uglifier_problem.dockerfile . -t uglifier
+
+To run a container that will create the problem output run:
+
+sudo docker run -it --rm uglifier
+
+The problem output can be seen in /tmp/gulp_problem/uglifierOutput/problem.js inside the container
