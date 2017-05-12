@@ -15,6 +15,6 @@ docker build -f uglifier_problem.dockerfile . -t uglifier
 
 To run a container that will create the problem output run:
 
-sudo docker run -it --rm uglifier
+docker run -it --rm uglifier
 
-The problem output can be seen in /tmp/gulp_problem/uglifierOutput/problem.js inside the container
+The problem output can be seen in /tmp/gulp_problem/uglifierOutput/simple_regex.js inside the container
