@@ -58,18 +58,20 @@ RUN cd /home/vscode/extensions/css/server && /home/vscode/scripts/npm.sh install
     cd /home/vscode/extensions/json/server && /home/vscode/scripts/npm.sh install && \
     cd /home/vscode/extensions/html/server && /home/vscode/scripts/npm.sh install
 
-# Compile the code (must ensure that a mac resource exists or else there is an error. Kind of weird but I am just going with it)
-RUN touch /home/vscode/resources/darwin/Credits.rtf && \
-    cd /home/vscode && /home/vscode/scripts/npm.sh run-script compile
+# Build, compile, optimize and minify (must create mac resource for this to work which is unfortunate...)
+RUN npm install -g gulp && \
+    touch /home/vscode/resources/darwin/Credits.rtf && \
+    cd /home/vscode && gulp vscode-linux-x64-min
 
-# Package the app (use the version of electron specified in package.json)
-RUN /home/vscode/scripts/npm.sh install electron-packager -g && \
+# Download the distributable version of electron specified in package.json
+RUN npm install -g electron-download && \
+    mkdir /tmp/electron-downloads && \
     ELECTRON_VERSION=$( \
-        cat /home/vscode/package.json | \
-	grep electronVersion | \
-	sed -e 's/[[:space:]]*"electronVersion":[[:space:]]*"\([0-9.]*\)"\(,\)*/\1/' \
+      cat /home/vscode/package.json | \
+      grep electronVersion | \
+      sed -e 's/[[:space:]]*"electronVersion":[[:space:]]*"\([0-9.]*\)"\(,\)*/\1/' \
     ) && \
-    cd /home/vscode && electron-packager . vscode_custom --platform=linux --arch=x64 --icon=resources/linux/code.png --electron-version=$ELECTRON_VERSION
+    electron-download --version=$ELECTRON_VERSION --platform=linux --arch=x64 --cache=/tmp/electron-downloads
 
 # Install X11
 RUN apt-get install -y sudo x11-apps libx11-xcb-dev
@@ -86,11 +88,20 @@ RUN export uid=1000 gid=1000 && \
 
 USER developer
 
-# Copy over the built version of vscode to a directory owned by developer
-RUN sudo cp -r /home/vscode/vscode_custom-linux-x64 /home/developer
-
 # Create directories for the config and extensions so that they can be mapped to volumes when running
 RUN mkdir -p /home/developer/.config/code-oss-dev &&\
     mkdir /home/developer/extensions_vscode
 
-CMD ./home/developer/vscode_custom-linux-x64/vscode_custom --extensions-dir=/home/developer/extensions_vscode
+# Unzip the distributable version of electron
+RUN sudo apt-get install -y unzip && \
+    mkdir -p /home/developer/vscode_final/resources/app/out && \
+    unzip '/tmp/electron-downloads/*.zip' -d /home/developer/vscode_final
+
+# Place the built version of vscode next to the distributable version of electron
+RUN rm /home/developer/vscode_final/resources/default_app.asar && \
+    cp -r /home/vscode/out-vscode-min/. /home/developer/vscode_final/resources/app/out && \
+    cd /home/vscode && \
+    cp -r LICENSE.txt ThirdPartyNotices.txt extensions node_modules package.json product.json resources /home/developer/vscode_final/resources/app
+
+# Run vscode!!
+CMD ./home/developer/vscode_final/electron --extensions-dir=/home/developer/extensions_vscode
