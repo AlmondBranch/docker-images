@@ -405,12 +405,12 @@
 	"extraNodeModules": [
 		"vsda"
 	],
-	"commit": "f6868fce3eeb16663840eb82123369dec6077a9b",
-	"date": "2017-05-04T21:40:39.245Z",
+	"commit": "19222cdc84ce72202478ba1cec5cb557b71163de",
+	"date": "2017-05-10T13:16:25.899Z",
 	"checksums": {
-		"vs/workbench/electron-browser/workbench.main.js": "119BVDF44Y/DO2lB3mHgYA",
+		"vs/workbench/electron-browser/workbench.main.js": "JzZ0Wb8ESO9xPOaK4R9DDA",
 		"vs/workbench/electron-browser/workbench.main.css": "Sd3QSSnaeWLvlFiWO7EbPQ",
 		"vs/workbench/electron-browser/bootstrap/index.html": "l+kWonXswgi6FayuHAAcsQ",
-		"vs/workbench/electron-browser/bootstrap/index.js": "mKoJOzO/LYdlN2t0LDFUTw"
+		"vs/workbench/electron-browser/bootstrap/index.js": "7O54mcLBQR/N2aMxrlCkrA"
 	}
 }

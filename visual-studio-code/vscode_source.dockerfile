@@ -28,7 +28,7 @@ RUN apt-get install -y libnss3 libgtk2.0-0 libxtst6 libxss1 libgconf-2-4 libasou
 # Add the release icon and product.json to the container (Don't update package.json because this will cause the question mark icon to appear)
 RUN mkdir /tmp/release_vscode_items
 ADD code.png /tmp/release_vscode_items/code.png
-ADD product_v1.12.1.json /tmp/release_vscode_items/product.json
+ADD product_v1.12.2.json /tmp/release_vscode_items/product.json
 
 # Set the working directory of the vscode git repo to match the commit mentioned in the distribution product.json file that was added from the release version
 ADD product_parser.py /home/product_parser.py
