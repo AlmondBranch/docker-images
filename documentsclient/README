@@ -1,10 +1,14 @@
 1. Make sure the the documents database container is up and running
 
-2. Run the container with:
+2. Build the image with:
 
-	sudo docker run -it --network host documentsclient /bin/bash
+	sudo docker build -f documents-client.dockerfile -t documents_client .
 
-3. Make sure that you can access the documents database with:
+3. Run the container with:
+
+	sudo docker run -it --network host documents_client /bin/bash
+
+4. Make sure that you can access the documents database with:
 
 	curl http://localhost:9200
 
