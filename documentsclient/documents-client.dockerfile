@@ -1,8 +1,6 @@
-FROM python:3.8.3
+FROM ruby:2.7
 
-RUN pip3 install elasticsearch
-RUN pip3 install PyPDF2
-RUN pip3 install fpdf
+RUN gem install elasticsearch
 
 RUN mkdir /home/resources
 COPY resources /home/resources/

@@ -19,5 +19,9 @@
 6. Add the test pdf to the index
 
 	cd /home/resources
-	python pdfupload.py
+	ruby uploadpdf.rb
 
+7. Download the test pdf
+
+	cd /home/resources
+	ruby downloadpdf.rb
