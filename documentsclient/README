@@ -12,3 +12,12 @@
 
 	curl http://localhost:9200
 
+5. Map the attachment field with a pipeline request (see https://kb.objectrocket.com/elasticsearch/how-to-index-a-pdf-file-as-an-elasticsearch-index-267)
+
+	./home/resources/dbsetup.sh
+
+6. Add the test pdf to the index
+
+	cd /home/resources
+	python pdfupload.py
+

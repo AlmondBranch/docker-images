@@ -4,4 +4,5 @@ RUN pip3 install elasticsearch
 RUN pip3 install PyPDF2
 RUN pip3 install fpdf
 
-COPY resources /home/
+RUN mkdir /home/resources
+COPY resources /home/resources/
