@@ -4,4 +4,4 @@
 
 2. Run the container with:
 
-	sudo docker run -p 9200:9200 -p 9300:9300 -e "discovery.type=single-node" document_database
+	sudo docker run -p 9200:9200 -p 9300:9300 -v docdb:/usr/share/elasticsearch/data -e "discovery.type=single-node" document_database
